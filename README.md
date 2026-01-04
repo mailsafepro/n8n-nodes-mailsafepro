@@ -4,7 +4,7 @@
 
 ![n8n](https://img.shields.io/badge/n8n-community--node-orange?logo=n8n)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-1.0.0-green)
+![Version](https://img.shields.io/badge/version-1.0.1-green)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)
 ![Tests](https://img.shields.io/badge/tests-32%20passing-success)
