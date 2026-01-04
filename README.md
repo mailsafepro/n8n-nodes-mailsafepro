@@ -6,10 +6,12 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Version](https://img.shields.io/badge/version-1.0.0-green)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)
+![Tests](https://img.shields.io/badge/tests-32%20passing-success)
 
-**Enterprise email validation node for [n8n](https://n8n.io) workflow automation**
+**Enterprise-grade email validation node for [n8n](https://n8n.io) workflow automation**
 
-[Features](#-features) • [Installation](#-installation) • [Operations](#-operations) • [Examples](#-example-workflows) • [Support](#-support)
+[Features](#-features) • [Installation](#-installation) • [Operations](#-operations) • [Examples](#-example-workflows) • [API Reference](#-api-reference) • [Support](#-support)
 
 </div>
 
@@ -17,18 +19,42 @@
 
 ## 🎯 Features
 
+### Core Capabilities
+
 | Feature | Description |
 |---------|-------------|
-| ✅ **Single Validation** | Validate individual emails with full analysis |
+| ✅ **Single Validation** | Real-time email validation with full analysis |
 | 📊 **Batch Validation** | Process up to 10,000 emails asynchronously |
-| ⏳ **Wait for Completion** | Built-in polling to wait for batch jobs |
+| ⏳ **Wait for Completion** | Built-in polling with configurable timeout |
+| ⚡ **Quick Check** | Fast syntax/domain validation without SMTP |
+| 🔄 **Auto-Retry** | Exponential backoff for rate limit handling |
+| 📈 **Statistics** | Automatic batch statistics calculation |
+
+### Validation Features
+
+| Feature | Description |
+|---------|-------------|
 | 🔍 **SMTP Verification** | Real mailbox existence checking |
-| ⚠️ **Risk Scoring** | Multi-factor risk assessment (0-100) |
+| ⚠️ **Risk Scoring** | Multi-factor risk assessment (0-1 scale) |
 | 🛡️ **DNS Security** | SPF, DKIM, DMARC validation |
 | 🚫 **Spam Trap Detection** | Identify honeypot addresses |
 | 📧 **Disposable Detection** | Block 10,000+ temporary email services |
 | 🏢 **Role Email Detection** | Identify generic addresses (admin@, info@) |
-| 📈 **Account Usage** | Monitor your API usage and plan |
+| 🎯 **Catch-All Detection** | Identify domains accepting all emails |
+
+### Enriched Output
+
+Every validation result includes computed fields for easy workflow logic:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `risk_level` | string | `low` / `medium` / `high` |
+| `quality_tier` | string | `excellent` / `good` / `fair` / `poor` |
+| `is_safe_to_send` | boolean | Safe to send (valid + low risk) |
+| `is_high_risk` | boolean | Risk score ≥ 0.7 |
+| `should_review` | boolean | Medium risk, needs manual review |
+| `recommendation` | string | Human-readable action recommendation |
+| `deliverability_status` | string | `high` / `medium` / `low` / `unknown` |
 
 ---
 
@@ -61,6 +87,8 @@ services:
       - ./custom:/home/node/.n8n/custom
 ```
 
+Then install the package in the custom directory.
+
 ---
 
 ## 🔑 Configuration
@@ -71,9 +99,9 @@ services:
 2. Go to your **Dashboard**
 3. Copy your **API Key**
 
-### Add Credentials
+### Add Credentials in n8n
 
-1. In n8n, go to **Credentials** → **New**
+1. Go to **Credentials** → **New**
 2. Search for **MailSafePro**
 3. Enter your API Key
 4. *(Optional)* Change Base URL for self-hosted instances
@@ -85,16 +113,16 @@ services:
 
 ### Email Resource
 
-#### Validate (Single)
+#### Validate Single
 
-Validate a single email with full analysis.
+Full validation of a single email address with SMTP verification.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| Email | string | ✅ | Email address to validate |
-| Check SMTP | boolean | ❌ | Real SMTP verification (slower) |
-| Include Raw DNS | boolean | ❌ | Include full DNS records |
-| Timeout | number | ❌ | Request timeout (10-60s) |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| Email | string | ✅ | - | Email address to validate |
+| Check SMTP | boolean | ❌ | true | Perform SMTP mailbox verification |
+| Include Raw DNS | boolean | ❌ | false | Include full DNS records |
+| Timeout | number | ❌ | 30 | Request timeout in seconds |
 
 <details>
 <summary><b>Example Output</b></summary>
@@ -111,6 +139,7 @@ Validate a single email with full analysis.
   "is_safe_to_send": true,
   "is_high_risk": false,
   "should_review": false,
+  "recommendation": "✅ Safe to send",
   "deliverability_status": "high",
   "provider_analysis": {
     "provider": "google",
@@ -125,78 +154,95 @@ Validate a single email with full analysis.
 ```
 </details>
 
-#### Validate Many (Sync)
+#### Validate Multiple (Sync)
 
 Validate multiple emails synchronously (max 100).
 
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| Emails | string | ✅ | - | Comma/newline/semicolon separated |
+| Check SMTP | boolean | ❌ | false | SMTP verification |
+| Return Individual Results | boolean | ❌ | true | Split into separate items |
+| Include Statistics | boolean | ❌ | true | Include batch statistics |
+
+#### Quick Check
+
+Fast syntax and domain validation without SMTP (ideal for real-time form validation).
+
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| Emails | string | ✅ | Comma/newline separated emails |
-| Check SMTP | boolean | ❌ | SMTP verification |
-| Return Individual Results | boolean | ❌ | Split into separate items |
+| Email | string | ✅ | Email address to check |
 
-### Batch Resource
+---
+
+### Batch Job Resource
 
 #### Create Job
 
-Create an async batch validation job (up to 10,000 emails).
+Create an async batch validation job for large lists.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| Emails | string | ✅ | List of emails |
-| Check SMTP | boolean | ❌ | SMTP verification |
-| Priority | select | ❌ | low / normal / high |
-| Callback URL | string | ❌ | Webhook for completion |
-| Job Name | string | ❌ | Identifier for the job |
-| Deduplicate | boolean | ❌ | Remove duplicates (default: true) |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| Emails | string | ✅ | - | List of emails (max 10,000) |
+| Check SMTP | boolean | ❌ | false | SMTP verification |
+| Priority | select | ❌ | normal | `low` / `normal` / `high` |
+| Callback URL | string | ❌ | - | Webhook for completion |
+| Job Name | string | ❌ | - | Identifier for the job |
+| Deduplicate | boolean | ❌ | true | Remove duplicates |
 
 #### Get Status
 
-Check the status of a batch job.
+Check the current status of a batch job.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | Job ID | string | ✅ | The batch job ID |
+
+**Returns:** Status with `progress_percent`, `is_completed`, `is_processing`, `is_failed`
 
 #### Get Results
 
-Retrieve results from a completed job.
+Retrieve validation results from a completed job.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| Job ID | string | ✅ | The batch job ID |
-| Page | number | ❌ | Page number |
-| Page Size | number | ❌ | Results per page (max 1000) |
-| Filter Status | select | ❌ | Filter by status |
-| Return Individual Results | boolean | ❌ | Split into items |
-
-#### List Jobs
-
-List all your batch jobs.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| Limit | number | ❌ | Max jobs to return |
-| Status Filter | select | ❌ | Filter by job status |
-
-#### Cancel Job
-
-Cancel a pending or processing job.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| Job ID | string | ✅ | The batch job ID |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| Job ID | string | ✅ | - | The batch job ID |
+| Page | number | ❌ | 1 | Page number |
+| Page Size | number | ❌ | 100 | Results per page (max 1000) |
+| Filter Status | select | ❌ | All | Filter by validation status |
+| Return Individual Results | boolean | ❌ | false | Split into items |
+| Include Statistics | boolean | ❌ | true | Include batch stats |
 
 #### Wait for Completion ⭐
 
-Poll until a job completes (with timeout).
+Poll until a job completes with automatic result fetching.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| Job ID | string | ✅ | - | The batch job ID |
+| Max Wait Time | number | ❌ | 300 | Timeout in seconds |
+| Poll Interval | number | ❌ | 10 | Check frequency in seconds |
+| Fetch Results | boolean | ❌ | true | Auto-fetch on complete |
+| Include Statistics | boolean | ❌ | true | Include batch stats |
+
+#### List Jobs
+
+List all batch jobs for your account.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| Limit | number | ❌ | 20 | Max jobs to return |
+| Filter Status | select | ❌ | All | Filter by job status |
+
+#### Cancel Job
+
+Cancel a pending or processing batch job.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | Job ID | string | ✅ | The batch job ID |
-| Max Wait Time | number | ❌ | Timeout in seconds (default: 300) |
-| Poll Interval | number | ❌ | Check frequency (default: 10s) |
-| Fetch Results | boolean | ❌ | Auto-fetch results on complete |
+
+---
 
 ### Account Resource
 
@@ -204,45 +250,62 @@ Poll until a job completes (with timeout).
 
 Get current API usage statistics.
 
+**Returns:**
+- `validations_used` - Number of validations used
+- `validations_limit` - Plan limit
+- `validations_remaining` - Remaining validations
+- `usage_percent` - Usage percentage
+- `is_near_limit` - True if usage ≥ 80%
+- `is_at_limit` - True if usage ≥ 100%
+
 #### Get Plan
 
-Get subscription plan details.
+Get subscription plan details and limits.
 
 ---
 
 ## 🔄 Example Workflows
 
-### 1. Validate Signups in Real-Time
+### 1. Real-Time Signup Validation
 
 ```
-[Webhook] → [MailSafePro: Validate] → [IF: is_safe_to_send] 
-                                           ├─ true → [Create User]
-                                           └─ false → [Reject & Log]
+[Webhook: Form Submit] → [MailSafePro: Validate Single] → [IF: is_safe_to_send]
+                                                              ├─ true → [Create User]
+                                                              └─ false → [Return Error]
 ```
 
 ### 2. Weekly Email List Cleanup
 
 ```
-[Schedule: Weekly] → [Get Subscribers] → [MailSafePro: Create Batch Job]
-                                                    ↓
-[Remove Invalid] ← [Get Results] ← [Wait for Completion]
+[Schedule: Weekly] → [Get Subscribers from DB] → [MailSafePro: Create Batch Job]
+                                                          ↓
+[Update DB: Remove Invalid] ← [MailSafePro: Wait for Completion]
 ```
 
 ### 3. Lead Scoring with Email Quality
 
 ```
-[CRM Trigger] → [MailSafePro: Validate] → [Code: Calculate Score]
-                                                    ↓
-                                          [Update CRM Lead Score]
+[CRM Trigger: New Lead] → [MailSafePro: Validate Single] → [Code: Calculate Score]
+                                                                    ↓
+                                                          [Update CRM Lead Score]
 ```
 
-### 4. Form Validation with Feedback
+### 4. Form Validation with Detailed Feedback
 
 ```
-[Form Submit] → [MailSafePro: Validate] → [Switch: status]
-                                               ├─ deliverable → [Save]
-                                               ├─ risky → [Flag for Review]
-                                               └─ undeliverable → [Return Error]
+[Form Submit] → [MailSafePro: Quick Check] → [Switch: status]
+                                                  ├─ deliverable → [Save Lead]
+                                                  ├─ risky → [Flag for Review]
+                                                  └─ undeliverable → [Return Error Message]
+```
+
+### 5. Batch Processing with Statistics
+
+```
+[Read CSV] → [MailSafePro: Validate Multiple] → [Split by: risk_level]
+                                                     ├─ low → [Safe List]
+                                                     ├─ medium → [Review Queue]
+                                                     └─ high → [Reject List]
 ```
 
 ---
@@ -251,43 +314,42 @@ Get subscription plan details.
 
 ### Risk Levels
 
-| Score | Level | Action |
-|-------|-------|--------|
-| 0-29 | 🟢 Low | Safe to send |
-| 30-69 | 🟡 Medium | Review recommended |
-| 70-100 | 🔴 High | Avoid or verify manually |
+| Score | Level | Emoji | Recommended Action |
+|-------|-------|-------|-------------------|
+| 0.00 - 0.29 | 🟢 Low | ✅ | Safe to send |
+| 0.30 - 0.49 | 🟡 Medium-Low | ✓ | Safe with monitoring |
+| 0.50 - 0.69 | 🟠 Medium | ⚡ | Consider verification |
+| 0.70 - 1.00 | 🔴 High | ⚠️ | Manual review required |
 
 ### Status Values
 
-| Status | Description |
-|--------|-------------|
-| `deliverable` | Valid email, mailbox exists |
-| `undeliverable` | Invalid or non-existent |
-| `risky` | Valid but has risk factors |
-| `unknown` | Could not fully verify |
+| Status | Description | Action |
+|--------|-------------|--------|
+| `deliverable` | Valid email, mailbox exists | ✅ Send |
+| `undeliverable` | Invalid or non-existent | ❌ Remove |
+| `risky` | Valid but has risk factors | ⚠️ Review |
+| `unknown` | Could not fully verify | 🔄 Retry later |
 
-### Computed Fields
+### Quality Tiers
 
-The node automatically adds these fields for easier workflow logic:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `risk_level` | string | low / medium / high |
-| `quality_tier` | string | excellent / good / fair / poor |
-| `is_safe_to_send` | boolean | Safe to send (valid + low risk) |
-| `is_high_risk` | boolean | Risk score ≥ 0.7 |
-| `should_review` | boolean | Medium risk, needs review |
-| `deliverability_status` | string | high / medium / low / unknown |
+| Tier | Score Range | Description |
+|------|-------------|-------------|
+| Excellent | > 0.80 | High-quality, engaged email |
+| Good | 0.61 - 0.80 | Reliable email address |
+| Fair | 0.41 - 0.60 | Acceptable with some concerns |
+| Poor | ≤ 0.40 | Low quality, high risk |
 
 ---
 
 ## ⚡ Rate Limits
 
-| Plan | Requests/Min | Batch Size |
-|------|--------------|------------|
-| FREE | 1 | 50 |
-| PREMIUM | 100 | 1,000 |
-| ENTERPRISE | 1,000 | 10,000 |
+| Plan | Requests/Min | Sync Batch | Async Batch |
+|------|--------------|------------|-------------|
+| FREE | 1 | 10 | 50 |
+| PREMIUM | 100 | 100 | 1,000 |
+| ENTERPRISE | 1,000 | 100 | 10,000 |
+
+The node includes automatic retry with exponential backoff for rate limit errors (HTTP 429).
 
 ---
 
@@ -298,22 +360,47 @@ The node automatically adds these fields for easier workflow logic:
 git clone https://github.com/mailsafepro/n8n-nodes-mailsafepro.git
 cd n8n-nodes-mailsafepro
 
-# Install
+# Install dependencies
 npm install
 
-# Develop (with hot reload)
+# Development with hot reload
 npm run dev
 
-# Test
+# Run tests
 npm test
 npm run test:coverage
 
-# Build
+# Build for production
 npm run build
 
 # Lint
 npm run lint
 npm run lint:fix
+
+# Type check
+npm run typecheck
+```
+
+### Project Structure
+
+```
+n8n-nodes-mailsafepro/
+├── credentials/
+│   └── MailSafeProApi.credentials.ts
+├── nodes/
+│   └── MailSafePro/
+│       ├── MailSafePro.node.ts
+│       └── mailsafepro.svg
+├── test/
+│   └── MailSafePro.node.test.ts
+├── examples/
+│   └── workflows/
+│       ├── validate-signups.json
+│       ├── clean-email-list.json
+│       └── lead-scoring.json
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
 ---
@@ -322,10 +409,11 @@ npm run lint:fix
 
 | Resource | Link |
 |----------|------|
-| 📚 Documentation | [docs.mailsafepro.com](https://docs.mailsafepro.com) |
+| 📚 API Documentation | [docs.mailsafepro.com](https://docs.mailsafepro.com) |
 | 💬 n8n Community | [community.n8n.io](https://community.n8n.io) |
-| 🐛 Issues | [GitHub Issues](https://github.com/mailsafepro/n8n-nodes-mailsafepro/issues) |
-| 📧 Email | support@mailsafepro.com |
+| 🐛 Report Issues | [GitHub Issues](https://github.com/mailsafepro/n8n-nodes-mailsafepro/issues) |
+| 📧 Email Support | support@mailsafepro.com |
+| 🌐 Website | [mailsafepro.com](https://mailsafepro.com) |
 
 ---
 
@@ -339,12 +427,38 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ### v1.0.0 (2026-01-04)
 
-- ✨ Initial release
-- ✅ Single email validation with enriched results
-- ✅ Sync batch validation (up to 100 emails)
-- ✅ Async batch jobs (up to 10,000 emails)
-- ✅ Wait for completion with auto-polling
-- ✅ Job management (list, status, results, cancel)
-- ✅ Account usage and plan info
-- ✅ Comprehensive error handling
-- ✅ Example workflows included
+**Initial Release**
+
+- ✨ Email validation with enriched results
+  - Single email validation with SMTP
+  - Quick check (syntax/domain only)
+  - Multiple emails sync validation (up to 100)
+- ✨ Batch job management
+  - Create async jobs (up to 10,000 emails)
+  - Get job status with progress
+  - Get paginated results with filters
+  - Wait for completion with auto-polling
+  - List all jobs
+  - Cancel pending jobs
+- ✨ Account management
+  - Get usage statistics
+  - Get plan details
+- ✨ Advanced features
+  - Automatic retry with exponential backoff
+  - Batch statistics calculation
+  - Email deduplication
+  - Configurable timeouts
+  - Comprehensive error handling
+- ✨ Developer experience
+  - Full TypeScript support
+  - 32 unit tests
+  - Example workflows included
+  - Detailed documentation
+
+---
+
+<div align="center">
+
+**Made with ❤️ by [MailSafePro](https://mailsafepro.com)**
+
+</div>

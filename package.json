@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-mailsafepro",
   "version": "1.0.0",
-  "description": "n8n community node for MailSafePro Email Validation API - Enterprise email validation with risk scoring, SMTP verification, and deliverability analysis",
+  "description": "n8n community node for MailSafePro Email Validation API - Enterprise email validation with risk scoring, SMTP verification, batch processing, and deliverability analysis",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
@@ -10,11 +10,16 @@
     "email-verification",
     "mailsafepro",
     "smtp",
+    "smtp-verification",
     "deliverability",
     "risk-scoring",
     "spam-trap",
     "disposable-email",
-    "batch-validation"
+    "batch-validation",
+    "email-hygiene",
+    "email-quality",
+    "bounce-prevention",
+    "email-list-cleaning"
   ],
   "license": "MIT",
   "homepage": "https://mailsafepro.com",
