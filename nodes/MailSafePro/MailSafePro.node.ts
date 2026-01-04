@@ -696,7 +696,7 @@ export class MailSafePro implements INodeType {
 						try {
 							response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 								method: 'POST' as IHttpRequestMethods,
-								url: '/v1/validate/email',
+								url: '/validate/email',
 								body,
 								json: true,
 								timeout,
@@ -733,7 +733,7 @@ export class MailSafePro implements INodeType {
 					} else {
 						const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 							method: 'POST' as IHttpRequestMethods,
-							url: '/v1/validate/email',
+							url: '/validate/email',
 							body: { email, check_smtp: false },
 							json: true,
 							timeout: 10000,
@@ -779,7 +779,7 @@ export class MailSafePro implements INodeType {
 
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 						method: 'POST' as IHttpRequestMethods,
-						url: '/v1/validate/batch',
+						url: '/validate/batch',
 						body,
 						json: true,
 						timeout: DEFAULT_TIMEOUT * 3,
@@ -858,7 +858,7 @@ export class MailSafePro implements INodeType {
 
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 						method: 'POST' as IHttpRequestMethods,
-						url: '/v1/jobs',
+						url: '/jobs',
 						body,
 						json: true,
 					}) as IDataObject;
@@ -889,7 +889,7 @@ export class MailSafePro implements INodeType {
 
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 						method: 'GET' as IHttpRequestMethods,
-						url: `/v1/jobs/${encodeURIComponent(jobId)}`,
+						url: `/jobs/${encodeURIComponent(jobId)}`,
 						json: true,
 					}) as BatchJobResponse;
 
@@ -926,7 +926,7 @@ export class MailSafePro implements INodeType {
 
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 						method: 'GET' as IHttpRequestMethods,
-						url: `/v1/jobs/${encodeURIComponent(jobId)}/results`,
+						url: `/jobs/${encodeURIComponent(jobId)}/results`,
 						qs,
 						json: true,
 					}) as IDataObject;
@@ -985,7 +985,7 @@ export class MailSafePro implements INodeType {
 
 						status = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 							method: 'GET' as IHttpRequestMethods,
-							url: `/v1/jobs/${encodeURIComponent(jobId)}`,
+							url: `/jobs/${encodeURIComponent(jobId)}`,
 							json: true,
 						}) as BatchJobResponse;
 
@@ -996,7 +996,7 @@ export class MailSafePro implements INodeType {
 							if (options.fetchResults !== false) {
 								const resultsResponse = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 									method: 'GET' as IHttpRequestMethods,
-									url: `/v1/jobs/${encodeURIComponent(jobId)}/results`,
+									url: `/jobs/${encodeURIComponent(jobId)}/results`,
 									json: true,
 								}) as IDataObject;
 
@@ -1063,7 +1063,7 @@ export class MailSafePro implements INodeType {
 
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 						method: 'GET' as IHttpRequestMethods,
-						url: '/v1/jobs',
+						url: '/jobs',
 						qs,
 						json: true,
 					}) as IDataObject;
@@ -1093,7 +1093,7 @@ export class MailSafePro implements INodeType {
 
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 						method: 'POST' as IHttpRequestMethods,
-						url: `/v1/jobs/${encodeURIComponent(jobId)}/cancel`,
+						url: `/jobs/${encodeURIComponent(jobId)}/cancel`,
 						json: true,
 					}) as IDataObject;
 
@@ -1110,7 +1110,7 @@ export class MailSafePro implements INodeType {
 				else if (resource === 'account' && operation === 'getUsage') {
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 						method: 'GET' as IHttpRequestMethods,
-						url: '/v1/account/usage',
+						url: '/billing/usage',
 						json: true,
 					}) as IDataObject;
 
@@ -1135,7 +1135,7 @@ export class MailSafePro implements INodeType {
 				else if (resource === 'account' && operation === 'getPlan') {
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'mailSafeProApi', {
 						method: 'GET' as IHttpRequestMethods,
-						url: '/v1/account/plan',
+						url: '/billing/subscription',
 						json: true,
 					}) as IDataObject;
 

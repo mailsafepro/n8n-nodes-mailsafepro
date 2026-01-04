@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-mailsafepro",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "n8n community node for MailSafePro Email Validation API - Enterprise email validation with risk scoring, SMTP verification, batch processing, and deliverability analysis",
   "keywords": [
     "n8n-community-node-package",
