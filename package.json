@@ -1,0 +1,75 @@
+{
+  "name": "n8n-nodes-mailsafepro",
+  "version": "1.0.0",
+  "description": "n8n community node for MailSafePro Email Validation API - Enterprise email validation with risk scoring, SMTP verification, and deliverability analysis",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "email",
+    "email-validation",
+    "email-verification",
+    "mailsafepro",
+    "smtp",
+    "deliverability",
+    "risk-scoring",
+    "spam-trap",
+    "disposable-email",
+    "batch-validation"
+  ],
+  "license": "MIT",
+  "homepage": "https://mailsafepro.com",
+  "author": {
+    "name": "MailSafePro",
+    "email": "support@mailsafepro.com",
+    "url": "https://mailsafepro.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mailsafepro/n8n-nodes-mailsafepro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mailsafepro/n8n-nodes-mailsafepro/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "n8n-node dev",
+    "build": "n8n-node build",
+    "build:watch": "n8n-node build --watch",
+    "lint": "n8n-node lint",
+    "lint:fix": "n8n-node lint --fix",
+    "release": "n8n-node release",
+    "prepublishOnly": "npm run build",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/MailSafeProApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/MailSafePro/MailSafePro.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@n8n/node-cli": "^1.0.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.0",
+    "jest": "^29.7.0",
+    "n8n-workflow": "^1.0.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

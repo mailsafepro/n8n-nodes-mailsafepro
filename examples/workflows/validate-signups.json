@@ -1,0 +1,161 @@
+{
+  "name": "MailSafePro - Validate New Signups",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "signup-validation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Signup Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "signup-validation"
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "validate",
+        "email": "={{ $json.body.email }}",
+        "options": {
+          "checkSmtp": true,
+          "timeout": 30
+        }
+      },
+      "id": "mailsafepro-validate",
+      "name": "Validate Email",
+      "type": "n8n-nodes-mailsafepro.mailSafePro",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "credentials": {
+        "mailSafeProApi": {
+          "id": "1",
+          "name": "MailSafePro API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "safe-to-send",
+              "leftValue": "={{ $json.is_safe_to_send }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid",
+      "name": "Is Safe to Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-api.com/users",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Validate Email').item.json.email }}\",\n  \"validated\": true,\n  \"risk_score\": {{ $('Validate Email').item.json.risk_score }},\n  \"quality_score\": {{ $('Validate Email').item.json.quality_score }},\n  \"provider\": \"{{ $('Validate Email').item.json.provider_analysis.provider }}\"\n}",
+        "options": {}
+      },
+      "id": "create-user",
+      "name": "Create User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Email validated successfully\",\n  \"user_created\": true\n}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1140, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-api.com/rejected-signups",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Validate Email').item.json.email }}\",\n  \"reason\": \"{{ $('Validate Email').item.json.status }}\",\n  \"risk_score\": {{ $('Validate Email').item.json.risk_score }},\n  \"risk_level\": \"{{ $('Validate Email').item.json.risk_level }}\",\n  \"rejected_at\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "log-rejection",
+      "name": "Log Rejection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Email validation failed\",\n  \"reason\": \"{{ $('Validate Email').item.json.status }}\",\n  \"suggestion\": \"Please use a valid email address\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1140, 400]
+    }
+  ],
+  "connections": {
+    "Signup Webhook": {
+      "main": [[{ "node": "Validate Email", "type": "main", "index": 0 }]]
+    },
+    "Validate Email": {
+      "main": [[{ "node": "Is Safe to Send?", "type": "main", "index": 0 }]]
+    },
+    "Is Safe to Send?": {
+      "main": [
+        [{ "node": "Create User", "type": "main", "index": 0 }],
+        [{ "node": "Log Rejection", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create User": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    },
+    "Log Rejection": {
+      "main": [[{ "node": "Respond Error", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "email-validation" },
+    { "name": "signup" },
+    { "name": "mailsafepro" }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "mailsafepro-example"
+  }
+}

@@ -1,0 +1,301 @@
+{
+  "name": "MailSafePro - Weekly Email List Cleanup",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Weekly Sunday 2AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://your-api.com/subscribers/export",
+        "options": {}
+      },
+      "id": "fetch-subscribers",
+      "name": "Fetch Subscribers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Extract and deduplicate emails from subscriber list\nconst items = $input.all();\nconst emails = [];\n\nfor (const item of items) {\n  if (item.json.email) {\n    emails.push(item.json.email.toLowerCase().trim());\n  }\n}\n\n// Deduplicate\nconst uniqueEmails = [...new Set(emails)];\n\nreturn [{\n  json: {\n    emails: uniqueEmails.join('\\n'),\n    total_count: uniqueEmails.length,\n    extracted_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "extract-emails",
+      "name": "Extract & Dedupe Emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "resource": "batch",
+        "operation": "createJob",
+        "batchEmails": "={{ $json.emails }}",
+        "batchOptions": {
+          "checkSmtp": true,
+          "priority": "normal",
+          "jobName": "={{ 'Weekly cleanup - ' + $now.format('yyyy-MM-dd') }}",
+          "deduplicate": true
+        }
+      },
+      "id": "create-batch-job",
+      "name": "Create Batch Job",
+      "type": "n8n-nodes-mailsafepro.mailSafePro",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "credentials": {
+        "mailSafeProApi": {
+          "id": "1",
+          "name": "MailSafePro API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "batch",
+        "operation": "waitForCompletion",
+        "jobId": "={{ $json.job_id }}",
+        "waitOptions": {
+          "maxWait": 1800,
+          "pollInterval": 30,
+          "fetchResults": false
+        }
+      },
+      "id": "wait-completion",
+      "name": "Wait for Completion",
+      "type": "n8n-nodes-mailsafepro.mailSafePro",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": {
+        "mailSafeProApi": {
+          "id": "1",
+          "name": "MailSafePro API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-completed",
+              "leftValue": "={{ $json.is_completed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-completed",
+      "name": "Job Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "resource": "batch",
+        "operation": "getResults",
+        "jobId": "={{ $('Create Batch Job').item.json.job_id }}",
+        "resultsOptions": {
+          "filterStatus": "undeliverable",
+          "pageSize": 500,
+          "splitResults": false
+        }
+      },
+      "id": "get-invalid-emails",
+      "name": "Get Invalid Emails",
+      "type": "n8n-nodes-mailsafepro.mailSafePro",
+      "typeVersion": 1,
+      "position": [1560, 200],
+      "credentials": {
+        "mailSafeProApi": {
+          "id": "1",
+          "name": "MailSafePro API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-api.com/subscribers/bulk-unsubscribe",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"emails\": {{ JSON.stringify($json.results.map(r => r.email)) }},\n  \"reason\": \"invalid_email\",\n  \"source\": \"mailsafepro_cleanup\",\n  \"cleaned_at\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "remove-invalid",
+      "name": "Remove Invalid Subscribers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "resource": "batch",
+        "operation": "getResults",
+        "jobId": "={{ $('Create Batch Job').item.json.job_id }}",
+        "resultsOptions": {
+          "filterStatus": "risky",
+          "pageSize": 500,
+          "splitResults": false
+        }
+      },
+      "id": "get-risky-emails",
+      "name": "Get Risky Emails",
+      "type": "n8n-nodes-mailsafepro.mailSafePro",
+      "typeVersion": 1,
+      "position": [1560, 100],
+      "credentials": {
+        "mailSafeProApi": {
+          "id": "1",
+          "name": "MailSafePro API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-api.com/subscribers/flag-risky",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"emails\": {{ JSON.stringify($json.results.map(r => ({ email: r.email, risk_score: r.risk_score }))) }},\n  \"flagged_at\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "flag-risky",
+      "name": "Flag Risky Subscribers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "channel": "#email-ops",
+        "text": "=:warning: *Email Cleanup Job Failed*\n\nJob ID: `{{ $('Create Batch Job').item.json.job_id }}`\nStatus: {{ $json.status }}\nWait Time: {{ $json.wait_time_seconds }}s\n\nPlease check the job manually.",
+        "otherOptions": {}
+      },
+      "id": "notify-failure",
+      "name": "Notify Failure",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1560, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "2",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Generate summary report\nconst invalidCount = $('Get Invalid Emails').item.json.results?.length || 0;\nconst riskyCount = $('Get Risky Emails').item.json.results?.length || 0;\nconst totalProcessed = $('Create Batch Job').item.json.total_emails || 0;\n\nreturn [{\n  json: {\n    report: {\n      total_processed: totalProcessed,\n      invalid_removed: invalidCount,\n      risky_flagged: riskyCount,\n      clean_emails: totalProcessed - invalidCount - riskyCount,\n      cleanup_date: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "generate-report",
+      "name": "Generate Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 150]
+    },
+    {
+      "parameters": {
+        "channel": "#email-ops",
+        "text": "=:white_check_mark: *Weekly Email Cleanup Complete*\n\n• Total Processed: {{ $json.report.total_processed }}\n• Invalid Removed: {{ $json.report.invalid_removed }}\n• Risky Flagged: {{ $json.report.risky_flagged }}\n• Clean Emails: {{ $json.report.clean_emails }}\n\nCleanup Date: {{ $json.report.cleanup_date }}",
+        "otherOptions": {}
+      },
+      "id": "notify-success",
+      "name": "Notify Success",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [2220, 150],
+      "credentials": {
+        "slackApi": {
+          "id": "2",
+          "name": "Slack API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Sunday 2AM": {
+      "main": [[{ "node": "Fetch Subscribers", "type": "main", "index": 0 }]]
+    },
+    "Fetch Subscribers": {
+      "main": [[{ "node": "Extract & Dedupe Emails", "type": "main", "index": 0 }]]
+    },
+    "Extract & Dedupe Emails": {
+      "main": [[{ "node": "Create Batch Job", "type": "main", "index": 0 }]]
+    },
+    "Create Batch Job": {
+      "main": [[{ "node": "Wait for Completion", "type": "main", "index": 0 }]]
+    },
+    "Wait for Completion": {
+      "main": [[{ "node": "Job Completed?", "type": "main", "index": 0 }]]
+    },
+    "Job Completed?": {
+      "main": [
+        [
+          { "node": "Get Invalid Emails", "type": "main", "index": 0 },
+          { "node": "Get Risky Emails", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Notify Failure", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Invalid Emails": {
+      "main": [[{ "node": "Remove Invalid Subscribers", "type": "main", "index": 0 }]]
+    },
+    "Get Risky Emails": {
+      "main": [[{ "node": "Flag Risky Subscribers", "type": "main", "index": 0 }]]
+    },
+    "Remove Invalid Subscribers": {
+      "main": [[{ "node": "Generate Report", "type": "main", "index": 0 }]]
+    },
+    "Flag Risky Subscribers": {
+      "main": [[{ "node": "Generate Report", "type": "main", "index": 0 }]]
+    },
+    "Generate Report": {
+      "main": [[{ "node": "Notify Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "email-validation" },
+    { "name": "batch" },
+    { "name": "cleanup" },
+    { "name": "mailsafepro" }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "mailsafepro-example"
+  }
+}

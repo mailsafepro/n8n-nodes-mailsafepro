@@ -1,0 +1,272 @@
+{
+  "name": "MailSafePro - Lead Scoring with Email Quality",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "lead-webhook",
+      "name": "New Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "new-lead"
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "validate",
+        "email": "={{ $json.body.email }}",
+        "options": {
+          "checkSmtp": true,
+          "includeRawDns": false,
+          "timeout": 30
+        }
+      },
+      "id": "validate-email",
+      "name": "Validate Lead Email",
+      "type": "n8n-nodes-mailsafepro.mailSafePro",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "credentials": {
+        "mailSafeProApi": {
+          "id": "1",
+          "name": "MailSafePro API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Calculate lead score based on email quality and other factors\nconst emailData = $json;\nconst leadData = $('New Lead Webhook').item.json.body;\n\n// Base score from email quality (0-40 points)\nlet emailScore = 0;\nif (emailData.valid) {\n  emailScore += 20;\n  \n  // Quality score contribution (0-10 points)\n  emailScore += Math.round((emailData.quality_score || 0) * 10);\n  \n  // Risk penalty (0-10 points deduction)\n  emailScore -= Math.round((emailData.risk_score || 0) * 10);\n  \n  // Provider reputation bonus (0-5 points)\n  const reputation = emailData.provider_analysis?.reputation || 0.5;\n  emailScore += Math.round(reputation * 5);\n}\n\n// Ensure email score is within bounds\nemailScore = Math.max(0, Math.min(40, emailScore));\n\n// Company domain bonus (0-20 points)\nlet companyScore = 0;\nconst email = emailData.email || '';\nconst domain = email.split('@')[1] || '';\nconst freeProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];\nif (!freeProviders.includes(domain.toLowerCase())) {\n  companyScore = 20; // Business email\n}\n\n// Role email penalty\nif (emailData.email_type?.is_role_email) {\n  companyScore -= 10;\n}\n\ncompanyScore = Math.max(0, companyScore);\n\n// Calculate total score (0-100)\nconst totalScore = emailScore + companyScore;\n\n// Determine lead tier\nlet tier = 'cold';\nif (totalScore >= 50) tier = 'hot';\nelse if (totalScore >= 30) tier = 'warm';\n\nreturn {\n  json: {\n    lead: {\n      email: emailData.email,\n      name: leadData.name || null,\n      company: leadData.company || null,\n      source: leadData.source || 'website'\n    },\n    email_validation: {\n      valid: emailData.valid,\n      status: emailData.status,\n      risk_score: emailData.risk_score,\n      quality_score: emailData.quality_score,\n      is_business_email: !freeProviders.includes(domain.toLowerCase()),\n      is_role_email: emailData.email_type?.is_role_email || false,\n      provider: emailData.provider_analysis?.provider || 'unknown'\n    },\n    scoring: {\n      email_score: emailScore,\n      company_score: companyScore,\n      total_score: totalScore,\n      tier: tier,\n      max_possible: 60\n    },\n    metadata: {\n      scored_at: new Date().toISOString(),\n      validation_id: emailData.metadata?.validation_id || null\n    }\n  }\n};"
+      },
+      "id": "calculate-score",
+      "name": "Calculate Lead Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-valid",
+              "leftValue": "={{ $json.email_validation.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-valid",
+      "name": "Email Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.scoring.tier }}",
+              "operation": "equals",
+              "value2": "hot"
+            }
+          ]
+        }
+      },
+      "id": "route-by-tier",
+      "name": "Route by Tier",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1120, 200],
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "outputKey": "hot",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.scoring.tier }}",
+                    "rightValue": "hot",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "warm",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.scoring.tier }}",
+                    "rightValue": "warm",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            }
+          ],
+          "fallbackOutput": "cold"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-crm.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "create-hot-lead",
+      "name": "Create Hot Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-crm.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "create-warm-lead",
+      "name": "Create Warm Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-crm.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "create-cold-lead",
+      "name": "Create Cold Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#sales-alerts",
+        "text": "=:fire: *Hot Lead Alert!*\n\nEmail: {{ $json.lead.email }}\nCompany: {{ $json.lead.company || 'Unknown' }}\nScore: {{ $json.scoring.total_score }}/60\n\n_Business email from {{ $json.email_validation.provider }}_",
+        "otherOptions": {}
+      },
+      "id": "notify-hot-lead",
+      "name": "Notify Sales (Hot)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1560, 100],
+      "credentials": {
+        "slackApi": {
+          "id": "2",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"lead_tier\": \"{{ $json.scoring.tier }}\",\n  \"score\": {{ $json.scoring.total_score }}\n}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1560, 250]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Invalid email address\",\n  \"status\": \"{{ $('Validate Lead Email').item.json.status }}\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-invalid",
+      "name": "Respond Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "New Lead Webhook": {
+      "main": [[{ "node": "Validate Lead Email", "type": "main", "index": 0 }]]
+    },
+    "Validate Lead Email": {
+      "main": [[{ "node": "Calculate Lead Score", "type": "main", "index": 0 }]]
+    },
+    "Calculate Lead Score": {
+      "main": [[{ "node": "Email Valid?", "type": "main", "index": 0 }]]
+    },
+    "Email Valid?": {
+      "main": [
+        [{ "node": "Route by Tier", "type": "main", "index": 0 }],
+        [{ "node": "Respond Invalid", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route by Tier": {
+      "main": [
+        [{ "node": "Create Hot Lead", "type": "main", "index": 0 }],
+        [{ "node": "Create Warm Lead", "type": "main", "index": 0 }],
+        [{ "node": "Create Cold Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create Hot Lead": {
+      "main": [[{ "node": "Notify Sales (Hot)", "type": "main", "index": 0 }]]
+    },
+    "Notify Sales (Hot)": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    },
+    "Create Warm Lead": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    },
+    "Create Cold Lead": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "lead-scoring" },
+    { "name": "email-validation" },
+    { "name": "crm" },
+    { "name": "mailsafepro" }
+  ],
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "mailsafepro-example"
+  }
+}
