@@ -509,8 +509,9 @@ Your community node is already published to npm. To get it listed in the officia
    - Add keywords to package.json: `n8n-community-node-package`, `n8n`
 
 2. **Submit for review:**
-   - Go to [n8n GitHub Discussions](https://github.com/n8n-io/n8n/discussions/categories/community-nodes)
-   - Create a new discussion with title: "Request to submit a new n8n community node for review"
+   - Go to [n8n Community Forum](https://community.n8n.io)
+   - Create a new topic in **"Help me Build my Workflow"** category
+   - Title: "Request to submit a new n8n community node for review"
    - Include: package name, npm link, brief description, and GitHub repository
 
 3. **Wait for verification** (can take weeks)
