@@ -1,0 +1,240 @@
+{
+  "name": "MailSafePro - Lead Scoring with Email Quality (n8n Cloud)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-validation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "CRM Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "lead-validation"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mailsafepro-api.fly.dev/api/v1/validate/email",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $json.email }}\",\n  \"check_smtp\": true\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-request-validate",
+      "name": "Validate Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300],
+      "credentials": {
+        "headerAuth": {
+          "id": "1",
+          "name": "MailSafePro API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate lead score based on email quality\nconst emailData = $input.item.json;\n\nlet leadScore = 0;\nlet factors = [];\n\n// Email quality score (0-100)\nif (emailData.quality_score) {\n  leadScore += emailData.quality_score * 100;\n  factors.push(`Email quality: ${Math.round(emailData.quality_score * 100)}`);\n}\n\n// Risk factor (lower risk = higher score)\nif (emailData.risk_score !== undefined) {\n  const riskBonus = Math.round((1 - emailData.risk_score) * 50);\n  leadScore += riskBonus;\n  factors.push(`Risk bonus: +${riskBonus}`);\n}\n\n// Provider reputation\nif (emailData.provider_analysis?.reputation) {\n  const providerBonus = Math.round(emailData.provider_analysis.reputation * 30);\n  leadScore += providerBonus;\n  factors.push(`Provider rep: +${providerBonus}`);\n}\n\n// Determine tier\nlet tier = 'cold';\nif (leadScore >= 80) tier = 'hot';\nelse if (leadScore >= 60) tier = 'warm';\nelse if (leadScore >= 40) tier = 'cool';\n\nreturn {\n  original: emailData,\n  lead_score: leadScore,\n  lead_tier: tier,\n  factors: factors,\n  is_safe_to_send: emailData.is_safe_to_send,\n  recommendation: emailData.recommendation\n};"
+      },
+      "id": "code-calculate",
+      "name": "Calculate Lead Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "dataPropertyName": "lead_tier",
+        "options": {
+          "fallbackValue": "cold"
+        },
+        "rules": {
+          "rules": [
+            {
+              "output": "hot",
+              "conditions": {
+                "conditions": [
+                  {
+                    "value1": "={{ $json.lead_tier }}",
+                    "value2": "hot",
+                    "operation": "equals"
+                  }
+                ]
+              }
+            },
+            {
+              "output": "warm",
+              "conditions": {
+                "conditions": [
+                  {
+                    "value1": "={{ $json.lead_tier }}",
+                    "value2": "warm",
+                    "operation": "equals"
+                  }
+                ]
+              }
+            },
+            {
+              "output": "cool",
+              "conditions": {
+                "conditions": [
+                  {
+                    "value1": "={{ $json.lead_tier }}",
+                    "value2": "cool",
+                    "operation": "equals"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "switch-tier",
+      "name": "Route by Tier",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-crm.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Calculate Lead Score').item.json.original.email }}\",\n  \"lead_score\": {{ $('Calculate Lead Score').item.json.lead_score }},\n  \"lead_tier\": \"hot\",\n  \"quality_score\": {{ $('Calculate Lead Score').item.json.original.quality_score }},\n  \"risk_score\": {{ $('Calculate Lead Score').item.json.original.risk_score }},\n  \"source\": \"webhook\"\n}",
+        "options": {}
+      },
+      "id": "create-hot-lead",
+      "name": "Create Hot Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-crm.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Calculate Lead Score').item.json.original.email }}\",\n  \"lead_score\": {{ $('Calculate Lead Score').item.json.lead_score }},\n  \"lead_tier\": \"warm\",\n  \"quality_score\": {{ $('Calculate Lead Score').item.json.original.quality_score }},\n  \"risk_score\": {{ $('Calculate Lead Score').item.json.original.risk_score }},\n  \"source\": \"webhook\"\n}",
+        "options": {}
+      },
+      "id": "create-warm-lead",
+      "name": "Create Warm Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-crm.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Calculate Lead Score').item.json.original.email }}\",\n  \"lead_score\": {{ $('Calculate Lead Score').item.json.lead_score }},\n  \"lead_tier\": \"cool\",\n  \"quality_score\": {{ $('Calculate Lead Score').item.json.original.quality_score }},\n  \"risk_score\": {{ $('Calculate Lead Score').item.json.original.risk_score }},\n  \"source\": \"webhook\",\n  \"notes\": \"Low email quality - verify manually\"\n}",
+        "options": {}
+      },
+      "id": "create-cool-lead",
+      "name": "Create Cool Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-crm.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Calculate Lead Score').item.json.original.email }}\",\n  \"lead_score\": {{ $('Calculate Lead Score').item.json.lead_score }},\n  \"lead_tier\": \"cold\",\n  \"quality_score\": {{ $('Calculate Lead Score').item.json.original.quality_score }},\n  \"risk_score\": {{ $('Calculate Lead Score').item.json.original.risk_score }},\n  \"source\": \"webhook\",\n  \"notes\": \"Blocked - {{ $('Calculate Lead Score').item.json.recommendation }}\"\n}",
+        "options": {}
+      },
+      "id": "create-cold-lead",
+      "name": "Create Cold Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 700]
+    }
+  ],
+  "connections": {
+    "CRM Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Email": {
+      "main": [
+        [
+          {
+            "node": "Calculate Lead Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Lead Score": {
+      "main": [
+        [
+          {
+            "node": "Route by Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Tier": {
+      "main": [
+        [
+          {
+            "node": "Create Hot Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Warm Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Cool Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Cold Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["email-validation", "mailsafepro", "lead-scoring", "crm"],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-15T00:00:00.000Z",
+  "versionId": "1"
+}

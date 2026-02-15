@@ -91,6 +91,86 @@ Then install the package in the custom directory.
 
 ---
 
+## ☁️ n8n Cloud (No Community Nodes)
+
+If you're using **n8n Cloud**, you can still use MailSafePro with the built-in **HTTP Request** node. Follow these steps:
+
+### 1. Get Your API Key
+
+1. Sign up at [mailsafepro.com](https://mailsafepro.com)
+2. Go to your **Dashboard** → **API Keys**
+3. Copy your **Default API Key**
+
+### 2. Add Credentials
+
+1. Go to **Credentials** → **New**
+2. Select **Header Auth**
+3. Name: `MailSafePro API`
+4. Add header:
+   - **Name:** `X-API-Key`
+   - **Value:** Your MailSafePro API Key (e.g., `msp_live_xxxxxxxxxxxx`)
+5. Click **Save**
+
+### 3. Use in Workflows
+
+#### Validate Single Email
+
+1. Add an **HTTP Request** node
+2. Configure:
+   - **Method:** `POST`
+   - **URL:** `https://mailsafepro-api.fly.dev/api/v1/validate/email`
+   - **Authentication:** `Header Auth` → Select `MailSafePro API`
+   - **Body Content Type:** `JSON`
+   - **Body:** `{ "email": "{{ $json.email }}" }`
+3. Connect to your data source
+
+#### Validate Multiple Emails (Batch)
+
+1. Add an **HTTP Request** node
+2. Configure:
+   - **Method:** `POST`
+   - **URL:** `https://mailsafepro-api.fly.dev/api/v1/validate/batch/sync`
+   - **Authentication:** `Header Auth` → Select `MailSafePro API`
+   - **Body Content Type:** `JSON`
+   - **Body:** `{ "emails": "{{ $json.emails }}" }`
+   - *(emails should be a comma-separated string)*
+
+#### Quick Check (Fast)
+
+1. Add an **HTTP Request** node
+2. Configure:
+   - **Method:** `POST`
+   - **URL:** `https://mailsafepro-api.fly.dev/api/v1/validate/quick`
+   - **Authentication:** `Header Auth` → Select `MailSafePro API`
+   - **Body Content Type:** `JSON`
+   - **Body:** `{ "email": "{{ $json.email }}" }`
+
+### 4. Import Example Workflows
+
+We provide ready-to-use workflow templates for n8n Cloud:
+
+| Workflow | Description | File |
+|----------|-------------|------|
+| Validate Signups | Validate new user signups in real-time | `n8n-cloud-validate-signups.json` |
+| Batch Cleanup | Clean your email list weekly | `n8n-cloud-clean-email-list.json` |
+| Lead Scoring | Score leads based on email quality | `n8n-cloud-lead-scoring.json` |
+
+**To import:**
+1. In n8n, go to **Workflows** → **Import from File**
+2. Select the JSON file
+3. Update the credentials reference if needed
+4. Configure your webhook URLs (replace `https://your-api.com/...` with your actual endpoints)
+
+### Example: Form Submission Validation
+
+```
+[Webhook: Form] → [HTTP Request: Validate] → [IF: is_safe_to_send]
+                                                   ├─ true → [Create Row]
+                                                   └─ false → [Return Error]
+```
+
+---
+
 ## 🔑 Configuration
 
 ### Get Your API Key
@@ -414,6 +494,32 @@ n8n-nodes-mailsafepro/
 | 🐛 Report Issues | [GitHub Issues](https://github.com/mailsafepro/n8n-nodes-mailsafepro/issues) |
 | 📧 Email Support | support@mailsafepro.com |
 | 🌐 Website | [mailsafepro.com](https://mailsafepro.com) |
+
+---
+
+## 🚀 Submit to n8n Integrations
+
+Your community node is already published to npm. To get it listed in the official n8n integrations directory:
+
+### Option 1: Get Verified for n8n Cloud (Recommended)
+
+1. **Ensure your node follows n8n standards:**
+   - Package name must start with `n8n-nodes-` ✓ (already correct)
+   - Include proper documentation ✓
+   - Add keywords to package.json: `n8n-community-node-package`, `n8n`
+
+2. **Submit for review:**
+   - Go to [n8n GitHub Discussions](https://github.com/n8n-io/n8n/discussions/categories/community-nodes)
+   - Create a new discussion with title: "Request to submit a new n8n community node for review"
+   - Include: package name, npm link, brief description, and GitHub repository
+
+3. **Wait for verification** (can take weeks)
+
+### Option 2: List on n8n Workflow Templates
+
+1. Create workflows using your node
+2. Export them as JSON
+3. Submit to [n8n Workflow Templates](https://n8n.io/workflows/submit/)
 
 ---
 
