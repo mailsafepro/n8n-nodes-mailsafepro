@@ -5,7 +5,7 @@ All notable changes to the n8n-nodes-mailsafepro package will be documented in t
 ## [1.0.1] - 2026-01-04
 
 ### Fixed
-- Updated base URL from `https://api.mailsafepro.com` to `https://mailsafepro-api.fly.dev`
+- Updated base URL from `https://api.mailsafepro.com` to `https://api.mailsafepro.es`
 - Removed `/v1/` prefix from all API routes to match current API structure:
   - `/v1/jobs` → `/jobs`
   - `/v1/jobs/{id}` → `/jobs/{id}`

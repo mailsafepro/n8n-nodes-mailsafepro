@@ -118,7 +118,7 @@ If you're using **n8n Cloud**, you can still use MailSafePro with the built-in *
 1. Add an **HTTP Request** node
 2. Configure:
    - **Method:** `POST`
-   - **URL:** `https://mailsafepro-api.fly.dev/api/v1/validate/email`
+   - **URL:** `https://api.mailsafepro.es/api/v1/validate/email`
    - **Authentication:** `Header Auth` → Select `MailSafePro API`
    - **Body Content Type:** `JSON`
    - **Body:** `{ "email": "{{ $json.email }}" }`
@@ -129,7 +129,7 @@ If you're using **n8n Cloud**, you can still use MailSafePro with the built-in *
 1. Add an **HTTP Request** node
 2. Configure:
    - **Method:** `POST`
-   - **URL:** `https://mailsafepro-api.fly.dev/api/v1/validate/batch/sync`
+   - **URL:** `https://api.mailsafepro.es/api/v1/validate/batch/sync`
    - **Authentication:** `Header Auth` → Select `MailSafePro API`
    - **Body Content Type:** `JSON`
    - **Body:** `{ "emails": "{{ $json.emails }}" }`
@@ -140,7 +140,7 @@ If you're using **n8n Cloud**, you can still use MailSafePro with the built-in *
 1. Add an **HTTP Request** node
 2. Configure:
    - **Method:** `POST`
-   - **URL:** `https://mailsafepro-api.fly.dev/api/v1/validate/quick`
+   - **URL:** `https://api.mailsafepro.es/api/v1/validate/quick`
    - **Authentication:** `Header Auth` → Select `MailSafePro API`
    - **Body Content Type:** `JSON`
    - **Body:** `{ "email": "{{ $json.email }}" }`

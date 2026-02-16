@@ -34,10 +34,10 @@ export class MailSafeProApi implements ICredentialType {
 			displayName: 'Base URL',
 			name: 'baseUrl',
 			type: 'string',
-			default: 'https://mailsafepro-api.fly.dev',
+			default: 'https://api.mailsafepro.es',
 			required: true,
 			description: 'Base URL for the MailSafePro API. Only change for self-hosted instances.',
-			placeholder: 'https://mailsafepro-api.fly.dev',
+			placeholder: 'https://api.mailsafepro.es',
 		},
 	];
 

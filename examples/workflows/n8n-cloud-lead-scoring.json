@@ -18,7 +18,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://mailsafepro-api.fly.dev/api/v1/validate/email",
+        "url": "https://api.mailsafepro.es/api/v1/validate/email",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"email\": \"{{ $json.email }}\",\n  \"check_smtp\": true\n}",

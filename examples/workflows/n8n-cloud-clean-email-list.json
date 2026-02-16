@@ -21,7 +21,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://mailsafepro-api.fly.dev/api/v1/validate/batch/sync",
+        "url": "https://api.mailsafepro.es/api/v1/validate/batch/sync",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"emails\": {{ $json.emails }},\n  \"check_smtp\": true\n}",
